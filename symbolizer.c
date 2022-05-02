@@ -128,7 +128,7 @@ void cgo_context(void *p) {
         // this context in the traceback function.
         #define CGO_CONTEXT_CALL_STACK_DEPTH 2
         for (int i = 0; i < CGO_CONTEXT_CALL_STACK_DEPTH; i++) {
-                if (unw_step(&ctx->unw_cursor) < 0) {
+                if (unw_step(&ctx->unw_cursor) <= 0) {
                         return;
                 }
         }
