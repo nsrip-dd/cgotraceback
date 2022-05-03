@@ -156,10 +156,23 @@ void cgo_traceback(void *p) {
                 cgo_context_init(&new_ctx);
                 ctx = &new_ctx;
 
-                // TODO: as in the benesch cgosymbolizer, advance the cursor a
-                // few frames to get to the C call that was interrupted? There
-                // should be a sigtramp function, which bounces to
-                // x_cgo_callers, which calls cgo_traceback.
+                // On supported platforms, this function is called from a
+                // SIGPROF signal handler to record a leaf C call stack (which
+                // won't have a prior context). There are three call frames
+                // before we get to the interrupted C call: cgo_traceback (this
+                // function), x_cgo_callers, and a sigtramp function.
+                //
+                // XXX: would it be correct to check sig_context as a
+                // future-proof way to be sure we're actually in this situation?
+                #define CGO_SIGTRAMP_CALL_STACK_DEPTH 3
+                for (int i = 0; i < CGO_SIGTRAMP_CALL_STACK_DEPTH; i++) {
+                        if (unw_step(&ctx->unw_cursor) <= 0) {
+                                // If we can't skip the initial frames, there's
+                                // no point in giving any stack trace
+                                arg->buf[0] = 0;
+                                return;
+                        }
+                }
         }
 
         int i = 0;
