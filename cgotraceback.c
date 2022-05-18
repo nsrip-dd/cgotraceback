@@ -1,7 +1,9 @@
-#include <stddef.h>
-
 #define _GNU_SOURCE // for dladdr
 #include <dlfcn.h>
+#include <pthread.h>
+#include <signal.h>
+#include <stddef.h>
+
 #define UNW_LOCAL_ONLY
 #include <libunwind.h>
 
@@ -44,17 +46,24 @@ static void cgo_context_release(struct cgo_context *c) {
 }
 
 void cgo_context(void *p) {
+        sigset_t old, new;
+        sigemptyset(&new);
+        sigaddset(&new, SIGPROF);
+        pthread_sigmask(SIG_BLOCK, &new, &old);
         struct { uintptr_t p; } *arg = p;
         struct cgo_context *ctx = (struct cgo_context *) arg->p;
         if (ctx != NULL) {
                 cgo_context_release(ctx);
+                pthread_sigmask(SIG_SETMASK, &old, NULL);
                 return;
         }
         ctx = cgo_context_get();
         if (ctx == NULL) {
+                pthread_sigmask(SIG_SETMASK, &old, NULL);
                 return;
         }
         if (cgo_context_init(ctx) != 0) {
+                pthread_sigmask(SIG_SETMASK, &old, NULL);
                 return;
         }
 
@@ -129,11 +138,13 @@ void cgo_context(void *p) {
         #define CGO_CONTEXT_CALL_STACK_DEPTH 2
         for (int i = 0; i < CGO_CONTEXT_CALL_STACK_DEPTH; i++) {
                 if (unw_step(&ctx->unw_cursor) <= 0) {
+                        pthread_sigmask(SIG_SETMASK, &old, NULL);
                         return;
                 }
         }
 
         arg->p = (uintptr_t) ctx;
+        pthread_sigmask(SIG_SETMASK, &old, NULL);
 }
 
 struct cgo_traceback_arg {
@@ -144,6 +155,11 @@ struct cgo_traceback_arg {
 };
 
 void cgo_traceback(void *p) {
+        sigset_t old, new;
+        sigemptyset(&new);
+        sigaddset(&new, SIGPROF);
+        pthread_sigmask(SIG_BLOCK, &new, &old);
+
         struct cgo_traceback_arg *arg = p;
 
         struct cgo_context *ctx = NULL;
@@ -170,6 +186,7 @@ void cgo_traceback(void *p) {
                                 // If we can't skip the initial frames, there's
                                 // no point in giving any stack trace
                                 arg->buf[0] = 0;
+                                pthread_sigmask(SIG_SETMASK, &old, NULL);
                                 return;
                         }
                 }
@@ -189,6 +206,7 @@ void cgo_traceback(void *p) {
                 // PC 0 indicates the end of the call stack
                 arg->buf[i] = 0;
         }
+        pthread_sigmask(SIG_SETMASK, &old, NULL);
 }
 
 void cgo_symbolizer(void* p) {
