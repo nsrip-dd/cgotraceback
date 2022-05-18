@@ -5,8 +5,11 @@
 package cgotraceback_test
 
 import (
+	"io"
 	"runtime"
+	"runtime/pprof"
 	"testing"
+	"time"
 
 	_ "github.com/nsrip-dd/cgotraceback"
 	"github.com/nsrip-dd/cgotraceback/internal"
@@ -55,4 +58,30 @@ func TestCgoTraceback(t *testing.T) {
 	if !(found1 && found2) {
 		t.FailNow()
 	}
+}
+
+// If the libunwind implementation is not signal-safe, then this test might
+// induce a deadlock when run with the CPU profiler enabled.
+func TestNoDeadlock(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping long test")
+	}
+	runtime.SetCPUProfileRate(1000)
+	err := pprof.StartCPUProfile(io.Discard)
+	if err == nil {
+		// If CPU profiling was already started (e.g. running benchmarks
+		// with the CPU profile) then we don't need to stop it for this
+		// test
+		defer pprof.StopCPUProfile()
+	}
+	var pcs []uintptr
+	start := time.Now()
+	for time.Since(start) < 10*time.Second {
+		internal.DoCallback(func() {
+			var pc [128]uintptr
+			n := runtime.Callers(0, pc[:])
+			pcs = pc[:n]
+		})
+	}
+	_ = pcs
 }
