@@ -1,4 +1,6 @@
 //go:build cgo && (linux || darwin)
+// +build cgo
+// +build linux darwin
 
 // package cgotraceback enables collecting call stacks in C code and mapping C
 // code instruction addresses to file & function names. This pacakge implements

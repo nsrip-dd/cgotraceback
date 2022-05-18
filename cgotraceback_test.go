@@ -1,4 +1,6 @@
 //go:build cgo && (linux || darwin)
+// +build cgo
+// +build linux darwin
 
 package cgotraceback_test
 
