@@ -9,6 +9,17 @@
 //
 //	import _ "github.com/nsrip-dd/cgotraceback"
 //
+// On Linux, instructions from programs/libraries compiled with DWARF debugging
+// information are mapped to function names, files, and line numbers using
+// libdwfl from elfutils. The library is available on most package managers:
+//
+// 	Alpine:
+//		apk add elfutils-dev
+//	Debian/Ubuntu:
+//		apt install libdw-dev
+//	CentOS:
+//		yum install elfutils-libs
+//
 // This library requires libunwind. Either LLVM libunwind or nongnu libunwind
 // can be used on x86-64. libunwind is available by default on macos, and this
 // package works on x86-64 or arm64 for macos. It is also available for most
@@ -39,7 +50,7 @@ import (
 
 /*
 #cgo CFLAGS: -g -O2
-#cgo linux LDFLAGS: -lunwind -ldl
+#cgo linux LDFLAGS: -lunwind -ldl -ldw
 extern void cgo_context(void *);
 extern void cgo_traceback(void *);
 extern void cgo_symbolizer(void *);
