@@ -8,7 +8,7 @@
 #include <libunwind.h>
 
 struct cgo_context {
-        unw_context_t unw_ctx; // TODO: Do we need to keep this?
+        unw_context_t unw_ctx;
         unw_cursor_t unw_cursor;
         int inuse;
 };
