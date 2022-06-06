@@ -49,7 +49,7 @@ void cgo_context(void *p) {
         sigset_t old, new;
         sigemptyset(&new);
         sigaddset(&new, SIGPROF);
-        //pthread_sigmask(SIG_BLOCK, &new, &old);
+        pthread_sigmask(SIG_BLOCK, &new, &old);
         struct { uintptr_t p; } *arg = p;
         struct cgo_context *ctx = (struct cgo_context *) arg->p;
         if (ctx != NULL) {
@@ -206,5 +206,5 @@ void cgo_traceback(void *p) {
                 // PC 0 indicates the end of the call stack
                 arg->buf[i] = 0;
         }
-        //pthread_sigmask(SIG_SETMASK, &old, NULL);
+        pthread_sigmask(SIG_SETMASK, &old, NULL);
 }
