@@ -1,8 +1,11 @@
 #include <stdint.h>
-#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <elfutils/libdwfl.h>
+
+#include "cgotraceback.h"
 
 static Dwfl *dwfl;
 
@@ -25,19 +28,10 @@ __attribute__ ((constructor)) static void init(void) {
         dwfl_report_end(dwfl, NULL, NULL);
 }
 
-struct cgo_symbolizer_args {
-        uintptr_t pc;
-        const char* file;
-        uintptr_t lineno;
-        const char* func;
-        uintptr_t entry;
-        uintptr_t more;
-        uintptr_t data;
-};
-
 void cgo_symbolizer(void *p) {
         struct cgo_symbolizer_args *args = p;
         if (args->pc == 0) {
+                free((void *) args->data);
                 return;
         }
 
@@ -46,7 +40,12 @@ void cgo_symbolizer(void *p) {
                 return;
         }
 
-        args->func = dwfl_module_addrname(module, args->pc);
+        const char *func = dwfl_module_addrname(module, args->pc);
+        if (cgo_traceback_is_mangled(func)) {
+                func = cgo_traceback_demangle(func, NULL, NULL, NULL);
+                args->data = (uintptr_t) func;
+        }
+        args->func = func;
         Dwfl_Line *line = dwfl_module_getsrc(module, args->pc);
         if (line == NULL) {
                 return;

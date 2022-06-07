@@ -7,6 +7,8 @@
 #define UNW_LOCAL_ONLY
 #include <libunwind.h>
 
+#include "cgotraceback.h"
+
 struct cgo_context {
         unw_context_t unw_ctx;
         unw_cursor_t unw_cursor;
