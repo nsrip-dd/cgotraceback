@@ -4,10 +4,12 @@
 #include <unistd.h>
 
 #include <elfutils/libdwfl.h>
+#include <pthread.h>
 
 #include "cgotraceback.h"
 
-static Dwfl *dwfl;
+static pthread_mutex_t dwfl_lock = PTHREAD_MUTEX_INITIALIZER;
+static Dwfl *dwfl = NULL;
 
 static const Dwfl_Callbacks dwfl_callbacks = {
       .find_elf = dwfl_linux_proc_find_elf,
@@ -29,14 +31,22 @@ __attribute__ ((constructor)) static void init(void) {
 }
 
 void cgo_symbolizer(void *p) {
+        pthread_mutex_lock(&dwfl_lock);
+        if (dwfl == NULL) {
+                pthread_mutex_unlock(&dwfl_lock);
+                return;
+        }
+
         struct cgo_symbolizer_args *args = p;
         if (args->pc == 0) {
+                pthread_mutex_unlock(&dwfl_lock);
                 free((void *) args->data);
                 return;
         }
 
         Dwfl_Module *module = dwfl_addrmodule(dwfl, args->pc);
         if (module == NULL) {
+                pthread_mutex_unlock(&dwfl_lock);
                 return;
         }
 
@@ -48,9 +58,11 @@ void cgo_symbolizer(void *p) {
         args->func = func;
         Dwfl_Line *line = dwfl_module_getsrc(module, args->pc);
         if (line == NULL) {
+                pthread_mutex_unlock(&dwfl_lock);
                 return;
         }
         int line_number = 0;
         args->file = dwfl_lineinfo(line, NULL, &line_number, NULL, NULL, NULL);
         args->lineno = (uintptr_t) line_number;
+        pthread_mutex_unlock(&dwfl_lock);
 }
