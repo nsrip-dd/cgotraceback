@@ -6,6 +6,7 @@ package cgotraceback_test
 
 import (
 	"io"
+	"reflect"
 	"runtime"
 	"runtime/pprof"
 	"testing"
@@ -57,6 +58,25 @@ func TestCgoTraceback(t *testing.T) {
 	}
 	if !(found1 && found2) {
 		t.FailNow()
+	}
+}
+
+func TestRepeatedUnwind(t *testing.T) {
+	pcs := make([][]uintptr, 2)
+	internal.DoCallback(func() {
+		internal.DoCallback2(func() {
+			var pc [128]uintptr
+			for i := 0; i < 2; i++ {
+				n := runtime.Callers(0, pc[:])
+				pcs[i] = pc[:n]
+			}
+		})
+	})
+
+	if !reflect.DeepEqual(pcs[0], pcs[1]) {
+		t.Errorf("unwound twice with different results")
+		t.Logf("first: %x", pcs[0])
+		t.Logf("second: %x", pcs[1])
 	}
 }
 

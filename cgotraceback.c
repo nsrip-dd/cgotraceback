@@ -3,15 +3,20 @@
 #include <pthread.h>
 #include <signal.h>
 #include <stddef.h>
+#include <string.h>
 
 #define UNW_LOCAL_ONLY
 #include <libunwind.h>
 
 #include "cgotraceback.h"
 
+#define STACK_MAX 32
+
 struct cgo_context {
         unw_context_t unw_ctx;
         unw_cursor_t unw_cursor;
+        uintptr_t stack[STACK_MAX];
+        int cached;
         int inuse;
 };
 
@@ -37,6 +42,7 @@ static struct cgo_context *cgo_context_get(void) {
         for (int i = 0; i < cgo_contexts_length; i++) {
                 if (cgo_contexts[i].inuse == 0) {
                         cgo_contexts[i].inuse = 1;
+                        cgo_contexts[i].cached = 0;
                         return &cgo_contexts[i];
                 }
         }
@@ -167,6 +173,12 @@ void cgo_traceback(void *p) {
         struct cgo_context *ctx = NULL;
         if (arg->context != 0) {
                 ctx = (struct cgo_context *) arg->context;
+                if (ctx->cached) {
+                        uintptr_t n = (arg->max < STACK_MAX) ? arg->max : STACK_MAX;
+                        memcpy(arg->buf, ctx->stack, n * sizeof(uintptr_t));
+                        pthread_sigmask(SIG_SETMASK, &old, NULL);
+                        return;
+                }
         } else {
                 // With no context, we were probably called from a signal
                 // handler interrupting a C call.
@@ -209,4 +221,13 @@ void cgo_traceback(void *p) {
                 arg->buf[i] = 0;
         }
         pthread_sigmask(SIG_SETMASK, &old, NULL);
+
+        // If we are unwinding from a saved contex, save the stack so we don't
+        // do this work again
+        if (arg->context != 0) {
+                ctx = (struct cgo_context *) arg->context;
+                ctx->cached = 1;
+                uintptr_t n = (STACK_MAX < arg->max) ? STACK_MAX : arg->max;
+                memcpy(ctx->stack, arg->buf, n * sizeof(uintptr_t));
+        }
 }
