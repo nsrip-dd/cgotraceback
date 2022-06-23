@@ -9,7 +9,6 @@ void cgo_symbolizer(void* p) {
         struct cgo_symbolizer_args *arg = p;
 
         if (arg->pc == 0) {
-                free((void *) arg->data);
                 return;
         }
 
@@ -22,9 +21,5 @@ void cgo_symbolizer(void* p) {
         }
         arg->file = dlinfo.dli_fname;
         arg->func = dlinfo.dli_sname;
-        if (cgo_traceback_is_mangled(arg->func)) {
-                arg->func = cgo_traceback_demangle(arg->func, NULL, NULL, NULL);
-                arg->data = (uintptr_t) arg->func;
-        }
         arg->entry = (uintptr_t) dlinfo.dli_saddr;
 }

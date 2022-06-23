@@ -40,7 +40,6 @@ void cgo_symbolizer(void *p) {
         struct cgo_symbolizer_args *args = p;
         if (args->pc == 0) {
                 pthread_mutex_unlock(&dwfl_lock);
-                free((void *) args->data);
                 return;
         }
 
@@ -51,10 +50,6 @@ void cgo_symbolizer(void *p) {
         }
 
         const char *func = dwfl_module_addrname(module, args->pc);
-        if (cgo_traceback_is_mangled(func)) {
-                func = cgo_traceback_demangle(func, NULL, NULL, NULL);
-                args->data = (uintptr_t) func;
-        }
         args->func = func;
         Dwfl_Line *line = dwfl_module_getsrc(module, args->pc);
         if (line == NULL) {
