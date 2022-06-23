@@ -1,5 +1,3 @@
-#define _GNU_SOURCE // for dladdr
-#include <dlfcn.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stddef.h>
@@ -9,6 +7,8 @@
 #include <libunwind.h>
 
 #include "cgotraceback.h"
+
+extern int (*cgo_traceback_fast_backtrace)(void **stack, int max);
 
 #define STACK_MAX 32
 
@@ -70,6 +70,14 @@ void cgo_context(void *p) {
                 pthread_sigmask(SIG_SETMASK, &old, NULL);
                 return;
         }
+        if (cgo_traceback_fast_backtrace != NULL) {
+                cgo_traceback_fast_backtrace((void **)ctx->stack, STACK_MAX);
+                pthread_sigmask(SIG_SETMASK, &old, NULL);
+                ctx->cached = 1;
+                arg->p = (uintptr_t) ctx;
+                return;
+        }
+
         if (cgo_context_init(ctx) != 0) {
                 pthread_sigmask(SIG_SETMASK, &old, NULL);
                 return;
@@ -179,6 +187,10 @@ void cgo_traceback(void *p) {
                         pthread_sigmask(SIG_SETMASK, &old, NULL);
                         return;
                 }
+        } else if (cgo_traceback_fast_backtrace != NULL) {
+                cgo_traceback_fast_backtrace((void **)arg->buf, arg->max);
+                pthread_sigmask(SIG_SETMASK, &old, NULL);
+                return;
         } else {
                 // With no context, we were probably called from a signal
                 // handler interrupting a C call.

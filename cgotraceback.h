@@ -1,6 +1,7 @@
 #ifndef CGO_TRACEBACK_H
 #define CGO_TRACEBACK_H
 
+#include <stdint.h>
 #include <stdlib.h>
 
 struct cgo_symbolizer_args {
