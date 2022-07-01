@@ -71,8 +71,11 @@ void cgo_context(void *p) {
                 return;
         }
         if (cgo_traceback_fast_backtrace != NULL) {
-                cgo_traceback_fast_backtrace((void **)ctx->stack, STACK_MAX);
+                // skip the first two frames (see comment below)
+                void *buf[STACK_MAX + 2];
+                int n = cgo_traceback_fast_backtrace(buf, STACK_MAX+2);
                 pthread_sigmask(SIG_SETMASK, &old, NULL);
+                memcpy(ctx->stack, &buf[2], (n - 2) * sizeof(uintptr_t));
                 ctx->cached = 1;
                 arg->p = (uintptr_t) ctx;
                 return;
@@ -188,8 +191,10 @@ void cgo_traceback(void *p) {
                         return;
                 }
         } else if (cgo_traceback_fast_backtrace != NULL) {
-                cgo_traceback_fast_backtrace((void **)arg->buf, arg->max);
+                int n = cgo_traceback_fast_backtrace((void **) arg->buf, arg->max);
                 pthread_sigmask(SIG_SETMASK, &old, NULL);
+                // skip the first three frames (see comment below)
+                memmove(arg->buf, &arg->buf[3], (n - 3) * sizeof(uintptr_t));
                 return;
         } else {
                 // With no context, we were probably called from a signal
