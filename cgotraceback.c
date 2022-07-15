@@ -8,6 +8,13 @@
 
 #include "cgotraceback.h"
 
+static int enabled = 1;
+
+// for benchmarking
+void cgo_traceback_internal_set_enabled(int value) {
+        enabled = value;
+}
+
 extern int (*cgo_traceback_fast_backtrace)(void **stack, int max);
 
 #define STACK_MAX 32
@@ -54,6 +61,10 @@ static void cgo_context_release(struct cgo_context *c) {
 }
 
 void cgo_context(void *p) {
+        if (enabled == 0) {
+                return;
+        }
+
         sigset_t old, new;
         sigemptyset(&new);
         sigaddset(&new, SIGPROF);
@@ -174,6 +185,10 @@ struct cgo_traceback_arg {
 };
 
 void cgo_traceback(void *p) {
+        if (enabled == 0) {
+                return;
+        }
+
         sigset_t old, new;
         sigemptyset(&new);
         sigaddset(&new, SIGPROF);

@@ -54,9 +54,19 @@ import (
 extern void cgo_context(void *);
 extern void cgo_traceback(void *);
 extern void cgo_symbolizer(void *);
+extern void cgo_traceback_internal_set_enabled(int);
 */
 import "C"
 
 func init() {
 	runtime.SetCgoTraceback(0, unsafe.Pointer(C.cgo_traceback), unsafe.Pointer(C.cgo_context), unsafe.Pointer(C.cgo_symbolizer))
+}
+
+// for testing
+func setEnabled(status bool) {
+	var enabled C.int
+	if status {
+		enabled = 1
+	}
+	C.cgo_traceback_internal_set_enabled(enabled)
 }
