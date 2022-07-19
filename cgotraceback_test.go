@@ -96,7 +96,7 @@ func TestNoDeadlock(t *testing.T) {
 	}
 	var pcs []uintptr
 	start := time.Now()
-	for time.Since(start) < 10*time.Second {
+	for time.Since(start) < 3*time.Second {
 		internal.DoCallback(func() {
 			var pc [128]uintptr
 			n := runtime.Callers(0, pc[:])
