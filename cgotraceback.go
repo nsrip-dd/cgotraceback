@@ -19,28 +19,6 @@
 //		apt install libdw-dev
 //	CentOS:
 //		yum install elfutils-libs
-//
-// This library requires libunwind. Either LLVM libunwind or nongnu libunwind
-// can be used on x86-64. libunwind is available by default on macos, and this
-// package works on x86-64 or arm64 for macos. It is also available for most
-// Linux distributions through their respective package managers, e.g:
-//
-// 	Alpine:
-//		apk add libunwind-dev
-//			or
-//		apk add llvm-libunwind-dev
-//	Debian/Ubuntu:
-//		apt install libunwind-dev
-//	CentOS:
-//		yum install libunwind-devel
-//
-// In general, a "development" version of the package is required in order to
-// get the libunwind headers, in addition to the library itself.
-//
-// Note that on arm64 Linux, this package does not work with the nongnu
-// libunwind, but it does work with the LLVM libunwind implementation. To get
-// the LLVM libunwind implementation for Debian or Ubuntu, refer to
-// https://apt.llvm.org/
 package cgotraceback
 
 import (
@@ -52,7 +30,7 @@ import (
 
 /*
 #cgo CFLAGS: -g -O2
-#cgo linux LDFLAGS: -lunwind -ldl -ldw
+#cgo linux LDFLAGS: -ldl -ldw
 extern void cgo_symbolizer(void *);
 */
 import "C"
