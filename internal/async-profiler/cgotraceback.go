@@ -1,7 +1,7 @@
 package asyncprofiler
 
 /*
-#cgo CXXFLAGS: -fno-omit-frame-pointer -g -O2
+#cgo CXXFLAGS: -fno-omit-frame-pointer -g -O2 -std=c++11
 #cgo darwin CXXFLAGS: -D_XOPEN_SOURCE
 
 extern void async_cgo_context(void *);
