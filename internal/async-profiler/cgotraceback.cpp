@@ -97,7 +97,11 @@ void async_cgo_context(void *p) {
         return;
     }
 
-    // skip the first two frames
+    // There are two frames in the call stack we should skip.  The first is this
+    // function, and the second is _cgo_wait_runtime_init_done, which calls this
+    // function to save the C call stack context before calling into Go code.
+    // The next frame after that is the exported C->Go function, which is where
+    // unwinding should begin for this context in the traceback function.
     void *buf[STACK_MAX + 2];
     memset(buf, 0, sizeof(buf));
     int n = async_profiler_backtrace(nullptr, (const void **) buf, STACK_MAX+2);
@@ -122,12 +126,20 @@ void async_cgo_traceback(void *p) {
     struct cgo_traceback_arg *arg = (struct cgo_traceback_arg *)p;
     struct cgo_context *ctx = NULL;
 
+    // If we had a previous context, then we're being called to unwind some
+    // previous C portion of a mixed C/Go call stack. We use the call stack
+    // information saved in the context.
     if (arg->context != 0) {
         ctx = (struct cgo_context *) arg->context;
         uintptr_t n = (arg->max < STACK_MAX) ? arg->max : STACK_MAX;
         memcpy(arg->buf, ctx->stack, n * sizeof(uintptr_t));
         return;
     }
+
+    // Otherwise, with no context, this function is being asked to unwind C
+    // function calls at the leaf/tail of the call stack (e.g. from a signal
+    // handler that just interrupted a C function call). We should skip 3 frames
+    // (this function, x_cgo_callers, and runtime.cgoSigtramp)
     memset(arg->buf, 0, arg->max * sizeof(uintptr_t));
     int n = async_profiler_backtrace(nullptr, (const void **) arg->buf, arg->max);
     memmove(arg->buf, &arg->buf[3], (n - 3) * sizeof(uintptr_t));
