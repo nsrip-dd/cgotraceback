@@ -3,7 +3,7 @@
 // +build linux darwin
 
 // package cgotraceback enables collecting call stacks in C code and mapping C
-// code instruction addresses to file & function names. This pacakge implements
+// code instruction addresses to file & function names. This package implements
 // the callbacks specified by runtime.SetCgoTraceback. To use the package,
 // underscore import it anywhere in your program:
 //
