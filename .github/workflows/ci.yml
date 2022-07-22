@@ -16,4 +16,4 @@ jobs:
       - name: get dependencies
         run: sudo apt update && sudo apt install -y --no-install-recommends libunwind-dev libdw-dev
       - name: unit tests
-        run: go test -v
+        run: go test -v -tags=use_libdwfl

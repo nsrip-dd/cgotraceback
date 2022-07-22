@@ -10,7 +10,7 @@
 //	import _ "github.com/nsrip-dd/cgotraceback"
 //
 // On Linux, instructions from programs/libraries compiled with DWARF debugging
-// information are mapped to function names, files, and line numbers using
+// information can be mapped to function names, files, and line numbers using
 // libdwfl from elfutils. The library is available on most package managers:
 //
 // 	Alpine:
@@ -19,6 +19,12 @@
 //		apt install libdw-dev
 //	CentOS:
 //		yum install elfutils-libs
+//
+// To use libdwfl, provide the "use_libdwfl" build tag.
+//
+// By default, dladdr will be used to symbolize instruction addresses. This
+// will give function names and the files (i.e. shared libraries or executable)
+// the functions are in, but will not have source file names or line numbers.
 package cgotraceback
 
 import (
@@ -30,7 +36,9 @@ import (
 
 /*
 #cgo CFLAGS: -g -O2
-#cgo linux LDFLAGS: -ldl -ldw
+#cgo CXXFLAGS: -g -O2
+#cgo linux LDFLAGS: -ldl
+#cgo linux && use_libdwfl LDFLAGS: -ldw
 extern void cgo_symbolizer(void *);
 */
 import "C"

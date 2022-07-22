@@ -1,3 +1,7 @@
+//go:build darwin || !use_libdwfl
+// +build darwin !use_libdwfl
+
+#define _GNU_SOURCE
 #include <dlfcn.h>
 #include <stdint.h>
 #include <stdlib.h>

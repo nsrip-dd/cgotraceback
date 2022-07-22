@@ -1,3 +1,7 @@
+//go:build linux && use_libdwfl
+// +build linux
+// +build use_libdwfl
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
