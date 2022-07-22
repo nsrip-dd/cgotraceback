@@ -38,7 +38,7 @@ struct StackContext {
 
 class StackWalker {
   public:
-    static int walkDwarf(CodeCacheArray *cache, void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx);
+    static int walkDwarf(CodeCacheArray *cache, void* ucontext, const void** callchain, int max_depth, int skip);
 };
 
 #endif // _STACKWALKER_H

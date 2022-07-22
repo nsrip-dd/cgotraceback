@@ -27,10 +27,10 @@ static __attribute__((constructor)) void init(void) {
 
 extern "C"  {
 
-int async_profiler_backtrace(void* ucontext, const void **callchain, int max) {
+int async_profiler_backtrace(void* ucontext, const void **callchain, int max, int skip) {
     // see Profiler::getNativeTrace
     CodeCacheArray *cache = (CodeCacheArraySingleton::getInstance());
-    return StackWalker::walkDwarf(cache, ucontext, callchain, max, nullptr);
+    return StackWalker::walkDwarf(cache, ucontext, callchain, max, skip);
 }
 
 static int enabled = 1;
@@ -105,8 +105,10 @@ void async_cgo_context(void *p) {
     // unwinding should begin for this context in the traceback function.
     void *buf[STACK_MAX + 2];
     memset(buf, 0, sizeof(buf));
-    int n = async_profiler_backtrace(nullptr, (const void **) buf, STACK_MAX+2);
-    memcpy(ctx->stack, &buf[2], (n - 2) * sizeof(uintptr_t));
+    int n = async_profiler_backtrace(nullptr, (const void **) ctx->stack, STACK_MAX, 2);
+    if (n < STACK_MAX) {
+        ctx->stack[n] = 0;
+    }
     ctx->cached = 1;
     arg->p = (uintptr_t) ctx;
     return;
@@ -142,7 +144,7 @@ void async_cgo_traceback(void *p) {
     // handler that just interrupted a C function call). We should skip 3 frames
     // (this function, x_cgo_callers, and runtime.cgoSigtramp)
     ucontext_t *uc = (ucontext_t *) arg->sig_context;
-    int n = async_profiler_backtrace(uc, (const void **) arg->buf, arg->max);
+    int n = async_profiler_backtrace(uc, (const void **) arg->buf, arg->max, 0);
     if (n < arg->max) {
         arg->buf[n] = 0;
     }

@@ -37,8 +37,7 @@ static CodeCache *findLibraryByAddress(CodeCacheArray *cache, const void* addres
     return NULL;
 }
 
-
-int StackWalker::walkDwarf(CodeCacheArray *cache, void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx) {
+int StackWalker::walkDwarf(CodeCacheArray *cache, void* ucontext, const void** callchain, int max_depth, int skip) {
     const void* pc;
     uintptr_t fp;
     uintptr_t sp;
@@ -62,11 +61,14 @@ int StackWalker::walkDwarf(CodeCacheArray *cache, void* ucontext, const void** c
         bottom = sp + MAX_WALK_SIZE;
     }
 
-    int depth = 0;
+    int depth = -skip;
 
     // Walk until the bottom of the stack or until the first Java frame
     while (depth < max_depth) {
-        callchain[depth++] = pc;
+        int d = depth++;
+        if (d >= 0) {
+            callchain[d] = pc;
+        }
         prev_sp = sp;
 
         FrameDesc* f;
