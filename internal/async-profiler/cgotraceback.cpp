@@ -1,4 +1,5 @@
 #include <cstring>
+#include <ucontext.h>
 
 #include "codeCache.h"
 #include "stackWalker.h"
@@ -140,9 +141,11 @@ void async_cgo_traceback(void *p) {
     // function calls at the leaf/tail of the call stack (e.g. from a signal
     // handler that just interrupted a C function call). We should skip 3 frames
     // (this function, x_cgo_callers, and runtime.cgoSigtramp)
-    memset(arg->buf, 0, arg->max * sizeof(uintptr_t));
-    int n = async_profiler_backtrace(nullptr, (const void **) arg->buf, arg->max);
-    memmove(arg->buf, &arg->buf[3], (n - 3) * sizeof(uintptr_t));
+    ucontext_t *uc = (ucontext_t *) arg->sig_context;
+    int n = async_profiler_backtrace(uc, (const void **) arg->buf, arg->max);
+    if (n < arg->max) {
+        arg->buf[n] = 0;
+    }
     return;
 }
 

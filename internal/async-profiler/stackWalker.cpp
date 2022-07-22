@@ -54,6 +54,12 @@ int StackWalker::walkDwarf(CodeCacheArray *cache, void* ucontext, const void** c
         pc = (const void*)frame.pc();
         fp = frame.fp();
         sp = frame.sp();
+        // XXX(nick): From testing, I've seen that during profiling, when this
+        // is called from Go's SIGPROF handler, the previous value of bottom
+        // points to a Go stack, while we're actually trying to unwind an OS
+        // stack. So we want to adjust the "bottom" of the stack to be the
+        // "bottom" of the one we're trying to unwind.
+        bottom = sp + MAX_WALK_SIZE;
     }
 
     int depth = 0;
