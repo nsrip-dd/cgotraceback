@@ -9,6 +9,10 @@
 //
 //	import _ "github.com/nsrip-dd/cgotraceback"
 //
+// By default, dladdr will be used to symbolize instruction addresses. This will
+// give function names and the files (i.e. shared libraries or executable) the
+// functions are in, but will not have source file names or line numbers.
+//
 // On Linux, instructions from programs/libraries compiled with DWARF debugging
 // information can be mapped to function names, files, and line numbers using
 // libdwfl from elfutils. The library is available on most package managers:
@@ -21,10 +25,6 @@
 //		yum install elfutils-libs
 //
 // To use libdwfl, provide the "use_libdwfl" build tag.
-//
-// By default, dladdr will be used to symbolize instruction addresses. This
-// will give function names and the files (i.e. shared libraries or executable)
-// the functions are in, but will not have source file names or line numbers.
 package cgotraceback
 
 import (
