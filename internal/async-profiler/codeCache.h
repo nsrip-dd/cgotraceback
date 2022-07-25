@@ -131,6 +131,10 @@ class CodeCache {
         _text_base = text_base;
     }
 
+    const char *getTextBase() {
+        return _text_base;
+    }
+
     void** gotStart() const {
         return _got_start;
     }
