@@ -20,9 +20,32 @@ CodeCacheArray *CodeCacheArraySingleton::getInstance() {
     return instance;
 }
 
+static CodeBlob *asmcgocall_bounds = nullptr;
+static uintptr_t asmcgocall_base = 0;
+
 static __attribute__((constructor)) void init(void) {
     auto a = CodeCacheArraySingleton::getInstance();
-	Symbols::parseLibraries(a, false);
+    Symbols::parseLibraries(a, false);
+
+    int count = a->count();
+    for (int i = 0; i < count; i++) {
+        CodeCache *c = a->operator[](i);
+        const void *p = NULL;
+        p = c->findSymbol("runtime.asmcgocall.abi0");
+        if (p == nullptr) {
+            // amscgocall name has "abi0" suffix on more recent Go versions
+            // but not on older versions
+            p = c->findSymbol("runtime.asmcgocall");
+        }
+        if (p == nullptr) {
+            continue;
+        }
+        auto cb = c->find(p);
+        if (cb != nullptr) {
+            asmcgocall_bounds = cb;
+            asmcgocall_base = (uintptr_t) c->getTextBase();
+        }
+    }
 }
 
 extern "C"  {
@@ -78,6 +101,29 @@ static void cgo_context_release(struct cgo_context *c) {
     c->inuse = 0;
 }
 
+// truncate_asmcgocall truncates a call stack after asmcgocall, if asmcgocall is
+// present in the stack. This function is the first function in the C call stack
+// for a Go -> C call, and it is not the responsibility of this library to
+// unwind past that function.
+static void truncate_asmcgocall(void **stack, int size) {
+    if (asmcgocall_bounds == nullptr) {
+        return;
+    }
+    for (int i = 0; i < size; i++) {
+        uintptr_t a = (uintptr_t) stack[i];
+        a += asmcgocall_base;
+        if ((a >= (uintptr_t) asmcgocall_bounds->_start) && (a <= (uintptr_t) asmcgocall_bounds->_end)) {
+            if ((i + 1) < size) {
+                // zero out the thing AFTER asmcgocall. We want to stop at
+                // asmcgocall since that's the "top" of the C stack in a
+                // Go -> C (-> Go) call
+                stack[i + 1] = 0;
+                return;
+            }
+        }
+    }
+}
+
 struct cgo_context_arg {
     uintptr_t p;
 };
@@ -103,12 +149,12 @@ void async_cgo_context(void *p) {
     // function to save the C call stack context before calling into Go code.
     // The next frame after that is the exported C->Go function, which is where
     // unwinding should begin for this context in the traceback function.
-    void *buf[STACK_MAX + 2];
-    memset(buf, 0, sizeof(buf));
     int n = async_profiler_backtrace(nullptr, (const void **) ctx->stack, STACK_MAX, 2);
     if (n < STACK_MAX) {
         ctx->stack[n] = 0;
     }
+    truncate_asmcgocall((void **) ctx->stack, n);
+
     ctx->cached = 1;
     arg->p = (uintptr_t) ctx;
     return;
@@ -148,6 +194,8 @@ void async_cgo_traceback(void *p) {
     if (n < arg->max) {
         arg->buf[n] = 0;
     }
+    truncate_asmcgocall((void **) arg->buf, n);
+
     return;
 }
 
