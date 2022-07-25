@@ -42,8 +42,6 @@ int StackWalker::walkDwarf(CodeCacheArray *cache, void* ucontext, const void** c
     uintptr_t fp;
     uintptr_t sp;
     uintptr_t prev_sp;
-    uintptr_t bottom = (uintptr_t)&sp + MAX_WALK_SIZE;
-
     if (ucontext == NULL) {
         pc = __builtin_return_address(0);
         fp = (uintptr_t)__builtin_frame_address(1); // XXX(nick): this isn't safe....
@@ -53,13 +51,16 @@ int StackWalker::walkDwarf(CodeCacheArray *cache, void* ucontext, const void** c
         pc = (const void*)frame.pc();
         fp = frame.fp();
         sp = frame.sp();
-        // XXX(nick): From testing, I've seen that during profiling, when this
-        // is called from Go's SIGPROF handler, the previous value of bottom
-        // points to a Go stack, while we're actually trying to unwind an OS
-        // stack. So we want to adjust the "bottom" of the stack to be the
-        // "bottom" of the one we're trying to unwind.
-        bottom = sp + MAX_WALK_SIZE;
     }
+    // We flag the "bottom" of the stack as a simple guard against unwinding too
+    // far. We need to compute the bottom relative to whichever stack pointer
+    // we're actually unwinding against as opposed to the stack this function is
+    // called on. This is necessary because Go provides its own stack for
+    // SIGPROF handling through sigaltstack, so this function will run on a
+    // different stack than the one we're interrupting during CPU profiling.
+    //
+    // TODO: find a more stable/safe way to compute the bottom of the stack?
+    uintptr_t bottom = sp + MAX_WALK_SIZE;
 
     int depth = -skip;
 
