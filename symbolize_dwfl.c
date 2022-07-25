@@ -2,6 +2,8 @@
 // +build linux
 // +build use_libdwfl
 
+#define _GNU_SOURCE
+#include <link.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,9 +18,11 @@ static pthread_mutex_t dwfl_lock = PTHREAD_MUTEX_INITIALIZER;
 static Dwfl *dwfl = NULL;
 
 static const Dwfl_Callbacks dwfl_callbacks = {
-      .find_elf = dwfl_linux_proc_find_elf,
-      .find_debuginfo = dwfl_standard_find_debuginfo,
+        .find_elf = dwfl_linux_proc_find_elf,
+        .find_debuginfo = dwfl_standard_find_debuginfo,
 };
+
+static int dl_callback(struct dl_phdr_info *info, size_t size, void *data);
 
 __attribute__ ((constructor)) static void init(void) {
         dwfl = dwfl_begin(&dwfl_callbacks);
@@ -26,12 +30,36 @@ __attribute__ ((constructor)) static void init(void) {
                 return;
         }
 
-        char filename[2048];
-        int n = readlink("/proc/self/exe", filename, 2047);
-        filename[n] = 0;
         dwfl_report_begin(dwfl);
-        dwfl_report_elf(dwfl, "self", filename, -1, 0, 0);
+        int count = 0;
+        dl_iterate_phdr(dl_callback, &count);
         dwfl_report_end(dwfl, NULL, NULL);
+}
+
+static int dl_callback(struct dl_phdr_info *info, size_t size, void *data) {
+        int *count = data;
+        const char *file = NULL;
+        const char *name = NULL;
+        if ((*count)++ == 0) {
+                // The first thing we visit is the executable
+                char filename[2048];
+                int n = readlink("/proc/self/exe", filename, 2047);
+                filename[n] = 0;
+                file = filename;
+                name = "self";
+        } else {
+                file = info->dlpi_name;
+                name = info->dlpi_name;
+        }
+        dwfl_report_elf(
+                dwfl,
+                name,
+                file,
+                -1, // FD (-1 for none)
+                info->dlpi_addr,
+                0 // add p_vaddr
+        );
+        return 0;
 }
 
 void cgo_symbolizer(void *p) {
