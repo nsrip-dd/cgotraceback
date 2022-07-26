@@ -109,13 +109,6 @@ void populateStackContext(StackContext &sc, void *ucontext) {
     }
 }
 
-int stackWalk(CodeCacheArray *cache, StackContext &sc, const void** callchain, int max_depth, int skip);
-int stackWalk(CodeCacheArray *cache, void* ucontext, const void** callchain, int max_depth, int skip) {
-    StackContext sc;
-    populateStackContext(sc, ucontext);
-    return stackWalk(cache, sc, callchain, max_depth, skip);
-}
-
 int stackWalk(CodeCacheArray *cache, StackContext &sc, const void** callchain, int max_depth, int skip) {
     int depth = -skip;
 

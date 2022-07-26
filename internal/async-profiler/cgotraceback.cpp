@@ -50,7 +50,6 @@ static __attribute__((constructor)) void init(void) {
 
 void populateStackContext(StackContext &sc, void *ucontext);
 int stackWalk(CodeCacheArray *cache, StackContext &sc, const void** callchain, int max_depth, int skip);
-int stackWalk(CodeCacheArray *cache, void* ucontext, const void** callchain, int max_depth, int skip);
 bool stepStackContext(StackContext &sc, CodeCacheArray *cache);
 
 extern "C"  {
