@@ -48,13 +48,12 @@ static __attribute__((constructor)) void init(void) {
     }
 }
 
-extern "C"  {
+void populateStackContext(StackContext &sc, void *ucontext);
+int stackWalk(CodeCacheArray *cache, StackContext &sc, const void** callchain, int max_depth, int skip);
+int stackWalk(CodeCacheArray *cache, void* ucontext, const void** callchain, int max_depth, int skip);
+bool stepStackContext(StackContext &sc, CodeCacheArray *cache);
 
-int async_profiler_backtrace(void* ucontext, const void **callchain, int max, int skip) {
-    // see Profiler::getNativeTrace
-    CodeCacheArray *cache = (CodeCacheArraySingleton::getInstance());
-    return StackWalker::walkDwarf(cache, ucontext, callchain, max, skip);
-}
+extern "C"  {
 
 static int enabled = 1;
 
@@ -66,6 +65,9 @@ void async_cgo_traceback_internal_set_enabled(int value) {
 #define STACK_MAX 32
 
 struct cgo_context {
+    const void *pc;
+    uintptr_t sp;
+    uintptr_t fp;
     uintptr_t stack[STACK_MAX];
     int cached;
     int inuse;
@@ -143,19 +145,19 @@ void async_cgo_context(void *p) {
     if (ctx == NULL) {
         return;
     }
-
+    StackContext sc;
+    populateStackContext(sc, nullptr);
+    CodeCacheArray *cache = (CodeCacheArraySingleton::getInstance());
     // There are two frames in the call stack we should skip.  The first is this
     // function, and the second is _cgo_wait_runtime_init_done, which calls this
     // function to save the C call stack context before calling into Go code.
     // The next frame after that is the exported C->Go function, which is where
     // unwinding should begin for this context in the traceback function.
-    int n = async_profiler_backtrace(nullptr, (const void **) ctx->stack, STACK_MAX, 2);
-    if (n < STACK_MAX) {
-        ctx->stack[n] = 0;
-    }
-    truncate_asmcgocall((void **) ctx->stack, n);
-
-    ctx->cached = 1;
+    stepStackContext(sc, cache);
+    stepStackContext(sc, cache);
+    ctx->pc = sc.pc;
+    ctx->sp = sc.sp;
+    ctx->fp = sc.fp;
     arg->p = (uintptr_t) ctx;
     return;
 }
@@ -174,23 +176,30 @@ void async_cgo_traceback(void *p) {
 
     struct cgo_traceback_arg *arg = (struct cgo_traceback_arg *)p;
     struct cgo_context *ctx = NULL;
+    StackContext sc;
 
     // If we had a previous context, then we're being called to unwind some
     // previous C portion of a mixed C/Go call stack. We use the call stack
     // information saved in the context.
     if (arg->context != 0) {
         ctx = (struct cgo_context *) arg->context;
+        if (ctx->cached == 0) {
+            CodeCacheArray *cache = (CodeCacheArraySingleton::getInstance());
+            sc.pc = ctx->pc;
+            sc.sp = ctx->sp;
+            sc.fp = ctx->fp;
+            int n = stackWalk(cache, sc, (const void **) ctx->stack, STACK_MAX, 0);
+            truncate_asmcgocall((void **) ctx->stack, n);
+            ctx->cached = 1;
+        }
         uintptr_t n = (arg->max < STACK_MAX) ? arg->max : STACK_MAX;
         memcpy(arg->buf, ctx->stack, n * sizeof(uintptr_t));
         return;
     }
 
-    // Otherwise, with no context, this function is being asked to unwind C
-    // function calls at the leaf/tail of the call stack (e.g. from a signal
-    // handler that just interrupted a C function call). We should skip 3 frames
-    // (this function, x_cgo_callers, and runtime.cgoSigtramp)
-    ucontext_t *uc = (ucontext_t *) arg->sig_context;
-    int n = async_profiler_backtrace(uc, (const void **) arg->buf, arg->max, 0);
+    populateStackContext(sc, (void *) arg->sig_context);
+    CodeCacheArray *cache = (CodeCacheArraySingleton::getInstance());
+    int n = stackWalk(cache, sc, (const void **) arg->buf, arg->max, 0);
     if (n < arg->max) {
         arg->buf[n] = 0;
     }
