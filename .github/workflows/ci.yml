@@ -14,7 +14,7 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
       - name: get dependencies
-        run: sudo apt update && sudo apt install -y --no-install-recommends libunwind-dev libdw-dev
+        run: sudo apt update && sudo apt install -y --no-install-recommends libdw-dev
       - name: unit tests (plain)
         run: go test -v
       - name: unit tests (libdwfl)
