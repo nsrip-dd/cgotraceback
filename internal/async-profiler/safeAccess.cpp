@@ -4,23 +4,32 @@
 #include <signal.h>
 #include <ucontext.h>
 
+#include "safeAccess.h"
 #include "stackFrame.h"
 
 static struct sigaction oldact;
-
-#ifdef __APPLE__
-#  define REG(l, m)  uc->uc_mcontext->__ss.__##m
-#  define SYMBOL(s) _ ## s
-#else
-#  define REG(l, m)  uc->uc_mcontext.gregs[REG_##l]
-#endif
-
-#include "safeAccess.h"
 
 namespace SafeAccess {
 
 NOINLINE __attribute__((aligned(16))) void* load(void** ptr) {
     return *ptr;
+}
+
+// skipFaultInstruction returns the address of the instruction immediately
+// following the given instruction. pc is assumed to point to the same kind of
+// load that SafeAccess::load would use
+static uintptr_t skipFaultInstruction(uintptr_t pc) {
+#if defined(__x86_64__)
+        return *(u16*)pc == 0x8b48 ? 3 : 0;  // mov rax, [reg]
+#elif defined(__i386__)
+        return *(u8*)pc == 0x8b ? 2 : 0;     // mov eax, [reg]
+#elif defined(__arm__) || defined(__thumb__)
+        return (*(instruction_t*)pc & 0x0e50f000) == 0x04100000 ? 4 : 0;  // ldr r0, [reg]
+#elif defined(__aarch64__)
+        return (*(instruction_t*)pc & 0xffc0001f) == 0xf9400000 ? 4 : 0;  // ldr x0, [reg]
+#else
+        return sizeof(instruction_t);
+#endif
 }
 
 }
