@@ -75,15 +75,6 @@ bool stepStackContext(StackContext &sc, FrameDesc *f) {
     if (f->fp_off & DW_PC_OFFSET) {
         sc.pc = (const char*)sc.pc + (f->fp_off >> 1);
     } else {
-        // XXX(nick): the "SafeAccess" stuff here is used to handle cases
-        // where unwinding leads to accessing invalid memory (such as doing
-        // frame pointer unwinding through functions which weren't compiled
-        // with frame pointers). The call here isn't enough to make it
-        // "safe", the async profiler also installs a SEGV signal handler
-        // and uses another function to jump over the bad access.
-        //
-        // I don't know that I want to do that. Would it skip over EVERY bad
-        // access?
         if (f->fp_off != DW_SAME_FP && f->fp_off < MAX_FRAME_SIZE && f->fp_off > -MAX_FRAME_SIZE) {
             sc.fp = (uintptr_t)SafeAccess::load((void**)(sc.sp + f->fp_off));
         }
