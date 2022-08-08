@@ -13,9 +13,9 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: ${{ matrix.go-version }}
-      - name: get dependencies
-        run: sudo apt update && sudo apt install -y --no-install-recommends libdw-dev
       - name: unit tests (plain)
         run: go test -v
+      - name: get dependencies
+        run: sudo apt update && sudo apt install -y --no-install-recommends libdw-dev
       - name: unit tests (libdwfl)
         run: go test -v -tags=use_libdwfl
