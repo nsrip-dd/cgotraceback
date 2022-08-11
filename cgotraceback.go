@@ -40,43 +40,6 @@ import (
 #cgo linux LDFLAGS: -ldl
 #cgo use_libdwfl LDFLAGS: -ldw
 extern void cgo_symbolizer(void *);
-
-extern char *strdup(const char *s);
-extern void free(void *);
-
-char *sink = 0;
-
-void stupid_void(void) {
-	for (int i = 0; i < 500; i++) {
-		char *s = strdup("foobar");
-		sink = s;
-		free(s);
-	}
-}
-
-__attribute__ ((noinline)) void foobarbaz(void) {
-	stupid_void();
-}
-
-int sink2 = 0;
-
-__attribute__ ((noinline)) void bazbonkboink(void) {
-	foobarbaz();
-	foobarbaz();
-	foobarbaz();
-	for (int i = 0; i < 1000; i++) {
-		sink2 ^= i;
-		sink2 ^= (sink2 <<2) * i;
-	}
-}
-
-__attribute__ ((noinline)) void extra1(void) {
-	bazbonkboink();
-}
-
-__attribute__ ((noinline)) void extra2(void) {
-	extra1();
-}
 */
 import "C"
 
@@ -91,8 +54,4 @@ func init() {
 // for testing
 func setEnabled(status bool) {
 	asyncprofiler.SetEnabled(status)
-}
-
-func Stupid() {
-	C.extra2()
 }
