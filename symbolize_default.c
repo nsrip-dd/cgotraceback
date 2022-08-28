@@ -18,9 +18,6 @@ void cgo_symbolizer(void* p) {
 
         Dl_info dlinfo;
         if (dladdr((void *) arg->pc, &dlinfo) == 0) {
-                arg->file = "?";
-                arg->func = "?";
-                arg->entry = 0;
                 return;
         }
         arg->file = dlinfo.dli_fname;
