@@ -107,8 +107,10 @@ void cgo_symbolizer(void *p) {
                 return;
         }
 
-        const char *func = dwfl_module_addrname(module, args->pc);
+        GElf_Sym sym;
+        const char *func = dwfl_module_addrsym(module, args->pc, &sym, NULL);
         args->func = func;
+        args->entry = sym.st_value;
         Dwfl_Line *line = dwfl_module_getsrc(module, args->pc);
         if (line == NULL) {
                 pthread_mutex_unlock(&dwfl_lock);
