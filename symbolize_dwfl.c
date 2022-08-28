@@ -36,19 +36,41 @@ __attribute__ ((constructor)) static void init(void) {
         dwfl_report_end(dwfl, NULL, NULL);
 }
 
+static char *full_readlink(const char *path) {
+        char *p = NULL;
+        size_t len = 128;
+        while (1) {
+                free(p);
+                p = calloc(1, len);
+                if (p == NULL) {
+                        return NULL;
+                }
+                int n = readlink(path, p, len);
+                if (n < 0) {
+                        free(p);
+                        return NULL;
+                }
+                if (n < len) {
+                        break;
+                }
+                len *= 2;
+        }
+        return p;
+}
+
 static int dl_callback(struct dl_phdr_info *info, size_t size, void *data) {
         int *count = data;
-        const char *file = NULL;
+        char *file = NULL;
         const char *name = NULL;
-        if ((*count)++ == 0) {
+        if (*count == 0) {
                 // The first thing we visit is the executable
-                char filename[2048];
-                int n = readlink("/proc/self/exe", filename, 2047);
-                filename[n] = 0;
-                file = filename;
+                file = full_readlink("/proc/self/exe");
+                if (file == NULL) {
+                        return 1;
+                }
                 name = "self";
         } else {
-                file = info->dlpi_name;
+                file = (char *) info->dlpi_name;
                 name = info->dlpi_name;
         }
         dwfl_report_elf(
@@ -59,6 +81,10 @@ static int dl_callback(struct dl_phdr_info *info, size_t size, void *data) {
                 info->dlpi_addr,
                 0 // add p_vaddr
         );
+        if ((*count)++ == 0) {
+                // It's okay to free filename here. libdwfl made a copy
+                free(file);
+        }
         return 0;
 }
 
