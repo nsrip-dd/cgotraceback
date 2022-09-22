@@ -100,14 +100,14 @@ void populateStackContext(StackContext &sc, void *ucontext) {
     }
 }
 
-int stackWalk(CodeCacheArray *cache, StackContext &sc, const void** callchain, int max_depth, int skip) {
+int stackWalk(CodeCacheArray *cache, StackContext &sc, uintptr_t *callchain, int max_depth, int skip) {
     int depth = -skip;
 
     // Walk until the bottom of the stack or until the first Java frame
     while (depth < max_depth) {
         int d = depth++;
         if (d >= 0) {
-            callchain[d] = sc.pc;
+            callchain[d] = (uintptr_t) sc.pc;
         }
         if (!stepStackContext(sc, cache)) {
 	        break;

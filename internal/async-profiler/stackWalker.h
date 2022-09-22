@@ -36,4 +36,6 @@ struct StackContext {
     }
 };
 
+int stackWalk(CodeCacheArray *cache, StackContext &sc, uintptr_t *callchain, int max_depth, int skip);
+
 #endif // _STACKWALKER_H

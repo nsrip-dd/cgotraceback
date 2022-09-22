@@ -49,7 +49,6 @@ static __attribute__((constructor)) void init(void) {
 }
 
 void populateStackContext(StackContext &sc, void *ucontext);
-int stackWalk(CodeCacheArray *cache, StackContext &sc, const void** callchain, int max_depth, int skip);
 bool stepStackContext(StackContext &sc, CodeCacheArray *cache);
 
 extern "C"  {
@@ -187,7 +186,7 @@ void async_cgo_traceback(void *p) {
             sc.pc = ctx->pc;
             sc.sp = ctx->sp;
             sc.fp = ctx->fp;
-            int n = stackWalk(cache, sc, (const void **) ctx->stack, STACK_MAX, 0);
+            int n = stackWalk(cache, sc, ctx->stack, STACK_MAX, 0);
             truncate_asmcgocall((void **) ctx->stack, n);
             ctx->cached = 1;
         }
@@ -198,7 +197,7 @@ void async_cgo_traceback(void *p) {
 
     populateStackContext(sc, (void *) arg->sig_context);
     CodeCacheArray *cache = (CodeCacheArraySingleton::getInstance());
-    int n = stackWalk(cache, sc, (const void **) arg->buf, arg->max, 0);
+    int n = stackWalk(cache, sc, arg->buf, arg->max, 0);
     if (n < arg->max) {
         arg->buf[n] = 0;
     }
