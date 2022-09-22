@@ -36,17 +36,12 @@ static CodeCache *findLibraryByAddress(CodeCacheArray *cache, const void* addres
     return NULL;
 }
 
-bool stepStackContext(StackContext &sc, FrameDesc *f);
 bool stepStackContext(StackContext &sc, CodeCacheArray *cache) {
     FrameDesc* f;
     CodeCache* cc = findLibraryByAddress(cache, sc.pc);
     if (cc == NULL || (f = cc->findFrameDesc(sc.pc)) == NULL) {
         f = &FrameDesc::default_frame;
     }
-    return stepStackContext(sc, f);
-}
-
-bool stepStackContext(StackContext &sc, FrameDesc *f) {
     uintptr_t bottom = sc.sp + MAX_WALK_SIZE;
     uintptr_t prev_sp = sc.sp;
 
