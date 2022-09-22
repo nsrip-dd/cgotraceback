@@ -113,7 +113,6 @@ class MachOParser {
 };
 
 
-Mutex Symbols::_parse_lock;
 bool Symbols::_have_kernel_symbols = false;
 
 void Symbols::parseKernelSymbols(CodeCache* cc) {
@@ -121,7 +120,6 @@ void Symbols::parseKernelSymbols(CodeCache* cc) {
 
 void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     static std::set<const void*> _parsed_libraries;
-    MutexLocker ml(_parse_lock);
     uint32_t images = _dyld_image_count();
 
     for (uint32_t i = 0; i < images; i++) {

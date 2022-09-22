@@ -478,7 +478,6 @@ void ElfParser::addRelocationSymbols(ElfSection* reltab, const char* plt) {
 }
 
 
-Mutex Symbols::_parse_lock;
 bool Symbols::_have_kernel_symbols = false;
 
 void Symbols::parseKernelSymbols(CodeCache* cc) {
@@ -491,7 +490,6 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     // I'm not sure why this original code even worked?
     std::set<const void *> parsed_libraries;
     std::set<unsigned long> parsed_inodes;
-    MutexLocker ml(_parse_lock);
 
     FILE* f = fopen("/proc/self/maps", "r");
     if (f == NULL) {
