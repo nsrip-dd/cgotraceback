@@ -66,9 +66,12 @@ enum {
     DW_OP_plus    = 0x22,
 };
 
-
-FrameDesc FrameDesc::default_frame = {0, DW_REG_FP | (2 * DW_STACK_SLOT) << 8, -2 * DW_STACK_SLOT};
-
+FrameDesc FrameDesc::default_frame = {
+    0, // loc
+    0xffffffff, // end
+    DW_REG_FP | (2 * DW_STACK_SLOT) << 8, // cfa
+    -2 * DW_STACK_SLOT // fp_off
+};
 
 DwarfParser::DwarfParser(const char* name, const char* image_base, const char* eh_frame_hdr) {
     _name = name;
@@ -133,12 +136,13 @@ void DwarfParser::parseFde() {
 
     u32 range_start = getPtr() - _image_base;
     u32 range_len = get32();
+    u32 range_end = range_start + range_len;
     _ptr += getLeb();
-    parseInstructions(range_start, fde_start + fde_len);
-    addRecord(range_start + range_len, DW_REG_SP, DW_STACK_SLOT, DW_SAME_FP);
+    parseInstructions(range_start, range_end, fde_start + fde_len);
+    addRecord(range_start + range_len, range_end, DW_REG_SP, DW_STACK_SLOT, DW_SAME_FP);
 }
 
-void DwarfParser::parseInstructions(u32 loc, const char* end) {
+void DwarfParser::parseInstructions(u32 loc, u32 loc_end, const char* end) {
     const u32 code_align = _code_align;
     const int data_align = _data_align;
 
@@ -162,15 +166,15 @@ void DwarfParser::parseInstructions(u32 loc, const char* end) {
                         _ptr = end;
                         break;
                     case DW_CFA_advance_loc1:
-                        addRecord(loc, cfa_reg, cfa_off, fp_off);
+                        addRecord(loc, loc_end, cfa_reg, cfa_off, fp_off);
                         loc += get8() * code_align;
                         break;
                     case DW_CFA_advance_loc2:
-                        addRecord(loc, cfa_reg, cfa_off, fp_off);
+                        addRecord(loc, loc_end, cfa_reg, cfa_off, fp_off);
                         loc += get16() * code_align;
                         break;
                     case DW_CFA_advance_loc4:
-                        addRecord(loc, cfa_reg, cfa_off, fp_off);
+                        addRecord(loc, loc_end, cfa_reg, cfa_off, fp_off);
                         loc += get32() * code_align;
                         break;
                     case DW_CFA_offset_extended:
@@ -259,7 +263,7 @@ void DwarfParser::parseInstructions(u32 loc, const char* end) {
                 }
                 break;
             case DW_CFA_advance_loc:
-                addRecord(loc, cfa_reg, cfa_off, fp_off);
+                addRecord(loc, loc_end, cfa_reg, cfa_off, fp_off);
                 loc += (op & 0x3f) * code_align;
                 break;
             case DW_CFA_offset:
@@ -274,7 +278,7 @@ void DwarfParser::parseInstructions(u32 loc, const char* end) {
         }
     }
 
-    addRecord(loc, cfa_reg, cfa_off, fp_off);
+    addRecord(loc, loc_end, cfa_reg, cfa_off, fp_off);
 }
 
 // Parse a limited subset of DWARF expressions, which is used in DW_CFA_val_expression
@@ -330,14 +334,14 @@ int DwarfParser::parseExpression() {
     return pc_off;
 }
 
-void DwarfParser::addRecord(u32 loc, u32 cfa_reg, int cfa_off, int fp_off) {
+void DwarfParser::addRecord(u32 loc, u32 loc_end, u32 cfa_reg, int cfa_off, int fp_off) {
     int cfa = cfa_reg | cfa_off << 8;
     if (_prev == NULL || (_prev->loc == loc && --_count >= 0) || _prev->cfa != cfa || _prev->fp_off != fp_off) {
-        _prev = addRecordRaw(loc, cfa, fp_off);
+        _prev = addRecordRaw(loc, loc_end, cfa, fp_off);
     }
 }
 
-FrameDesc* DwarfParser::addRecordRaw(u32 loc, int cfa, int fp_off) {
+FrameDesc* DwarfParser::addRecordRaw(u32 loc, u32 loc_end, int cfa, int fp_off) {
     if (_count >= _capacity) {
         _capacity *= 2;
         _table = (FrameDesc*)realloc(_table, _capacity * sizeof(FrameDesc));
@@ -345,6 +349,7 @@ FrameDesc* DwarfParser::addRecordRaw(u32 loc, int cfa, int fp_off) {
 
     FrameDesc* f = &_table[_count++];
     f->loc = loc;
+    f->loc_end = loc_end;
     f->cfa = cfa;
     f->fp_off = fp_off;
     return f;

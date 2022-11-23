@@ -57,6 +57,7 @@ const int DW_STACK_SLOT = sizeof(void*);
 
 struct FrameDesc {
     u32 loc;
+    u32 loc_end;
     int cfa;
     int fp_off;
 
@@ -139,11 +140,11 @@ class DwarfParser {
     void parse(const char* eh_frame_hdr);
     void parseCie();
     void parseFde();
-    void parseInstructions(u32 loc, const char* end);
+    void parseInstructions(u32 loc, u32 loc_end, const char* end);
     int parseExpression();
 
-    void addRecord(u32 loc, u32 cfa_reg, int cfa_off, int fp_off);
-    FrameDesc* addRecordRaw(u32 loc, int cfa, int fp_off);
+    void addRecord(u32 loc, u32 loc_end, u32 cfa_reg, int cfa_off, int fp_off);
+    FrameDesc* addRecordRaw(u32 loc, u32 loc_end, int cfa, int fp_off);
 
   public:
     DwarfParser(const char* name, const char* image_base, const char* eh_frame_hdr);

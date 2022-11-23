@@ -224,5 +224,12 @@ FrameDesc* CodeCache::findFrameDesc(const void* pc) {
         }
     }
 
-    return low > 0 ? &_dwarf_table[low - 1] : NULL;
+    if (low <= 0) {
+        return NULL;
+    }
+    FrameDesc *f = &_dwarf_table[low - 1];
+    if (target_loc > f->loc_end) {
+        return NULL;
+    }
+    return f;
 }
